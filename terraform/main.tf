@@ -2,17 +2,17 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# Security Group for SSH and HTTP
+# Security Group to allow SSH (22) and HTTP (80) access
 resource "aws_security_group" "allow_ssh_http" {
   name        = "allow_ssh_http"
-  description = "Allow SSH and HTTP access"
+  description = "Allow SSH and HTTP inbound traffic"
 
   ingress {
     description = "SSH"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Replace with your IP for better security
+    cidr_blocks = ["0.0.0.0/0"]  # For better security, restrict this to your IP
   }
 
   ingress {
@@ -35,11 +35,11 @@ resource "aws_security_group" "allow_ssh_http" {
   }
 }
 
-# EC2 Instance for NGINX
+# EC2 instance resource
 resource "aws_instance" "web" {
-  ami           = "ami-0c02fb55956c7d316" # Amazon Linux 2 (Free Tier)
+  ami           = "ami-0c02fb55956c7d316"  # Amazon Linux 2 (US East 1)
   instance_type = "t2.micro"
-  key_name      = "my-key" # Replace with your actual key name
+  key_name      = "my-key"  # Replace with your actual EC2 key pair name
 
   vpc_security_group_ids = [aws_security_group.allow_ssh_http.id]
 
@@ -60,11 +60,11 @@ resource "aws_instance" "web" {
     connection {
       type        = "ssh"
       user        = "ec2-user"
-      private_key = file("${path.module}/../my-key.pem")  # Adjust if needed
+      private_key = file("${path.module}/../my-key.pem")  # Adjust path to your private key
       host        = self.public_ip
       timeout     = "3m"
-      retries     = 10
     }
   }
 }
+
 
