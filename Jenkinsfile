@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        AWS_DEFAULT_REGION = 'us-east-1'
+        AWS_REGION = 'us-east-1'
         EC2_USER = 'ec2-user'
         PEM_FILE = "${WORKSPACE}/my-key.pem"
     }
@@ -10,9 +10,14 @@ pipeline {
     stages {
         stage('Terraform Init & Apply') {
             steps {
-                dir('terraform') {
-                    sh 'terraform init'
-                    sh 'terraform apply -auto-approve'
+                withCredentials([
+                    string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                    string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+                ]) {
+                    dir('terraform') {
+                        sh 'terraform init'
+                        sh 'terraform apply -auto-approve'
+                    }
                 }
             }
         }
@@ -29,16 +34,11 @@ pipeline {
 
         stage('Copy Setup Script & Run') {
             steps {
-                script {
-                    // Set correct permissions for the PEM file
-                    sh "chmod 400 ${PEM_FILE}"
-
-                    // Copy the setup script to EC2 and execute it
-                    sh """
-                        scp -o StrictHostKeyChecking=no -i ${PEM_FILE} scripts/setup-docker.sh ${EC2_USER}@${EC2_IP}:/home/${EC2_USER}/
-                        ssh -o StrictHostKeyChecking=no -i ${PEM_FILE} ${EC2_USER}@${EC2_IP} 'bash /home/${EC2_USER}/setup-docker.sh'
-                    """
-                }
+                sh '''
+                    chmod 400 ${PEM_FILE}
+                    scp -o StrictHostKeyChecking=no -i ${PEM_FILE} scripts/setup-docker.sh ${EC2_USER}@${EC2_IP}:/home/ec2-user/
+                    ssh -o StrictHostKeyChecking=no -i ${PEM_FILE} ${EC2_USER}@${EC2_IP} 'bash /home/ec2-user/setup-docker.sh'
+                '''
             }
         }
 
