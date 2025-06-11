@@ -4,7 +4,7 @@ pipeline {
     environment {
         AWS_DEFAULT_REGION = 'us-east-1'
         EC2_USER = 'ec2-user'
-        PEM_FILE = 'my-key.pem'
+        PEM_FILE = "${WORKSPACE}/my-key.pem"
     }
 
     stages {
@@ -29,17 +29,22 @@ pipeline {
 
         stage('Copy Setup Script & Run') {
             steps {
-                sh '''
-                    chmod 400 ${PEM_FILE}
-                    scp -o StrictHostKeyChecking=no -i ${PEM_FILE} scripts/setup-docker.sh ${EC2_USER}@${EC2_IP}:/home/ec2-user/
-                    ssh -o StrictHostKeyChecking=no -i ${PEM_FILE} ${EC2_USER}@${EC2_IP} 'bash setup-docker.sh'
-                '''
+                script {
+                    // Set correct permissions for the PEM file
+                    sh "chmod 400 ${PEM_FILE}"
+
+                    // Copy the setup script to EC2 and execute it
+                    sh """
+                        scp -o StrictHostKeyChecking=no -i ${PEM_FILE} scripts/setup-docker.sh ${EC2_USER}@${EC2_IP}:/home/${EC2_USER}/
+                        ssh -o StrictHostKeyChecking=no -i ${PEM_FILE} ${EC2_USER}@${EC2_IP} 'bash /home/${EC2_USER}/setup-docker.sh'
+                    """
+                }
             }
         }
 
         stage('Success Output') {
             steps {
-                echo "✅ NGINX is deployed at: http://${env.EC2_IP}:80"
+                echo "✅ NGINX is deployed and accessible at: http://${env.EC2_IP}:80"
             }
         }
     }
